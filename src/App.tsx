@@ -3,6 +3,7 @@
 import Image from "next/image";
 
 import { Primer } from "@/components/primer";
+import { VideoAgent } from "@/components/video-agent";
 
 export function App() {
 	return (
@@ -19,6 +20,7 @@ export function App() {
 				<span className="text-lg font-semibold tracking-tight">Primer</span>
 			</header>
 			<main className="flex w-full flex-1 flex-col">
+				<VideoAgent />
 				<Primer />
 			</main>
 		</div>

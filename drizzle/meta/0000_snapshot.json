@@ -1,0 +1,939 @@
+{
+	"id": "02453467-6e7d-41f7-a78e-c177d804d583",
+	"prevId": "00000000-0000-0000-0000-000000000000",
+	"version": "7",
+	"dialect": "postgresql",
+	"tables": {
+		"public.video_branch_end_frames": {
+			"name": "video_branch_end_frames",
+			"schema": "",
+			"columns": {
+				"branch_id": {
+					"name": "branch_id",
+					"type": "uuid",
+					"primaryKey": true,
+					"notNull": true
+				},
+				"frame_path": {
+					"name": "frame_path",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				}
+			},
+			"indexes": {},
+			"foreignKeys": {
+				"video_branch_end_frames_branch_id_video_node_branches_id_fk": {
+					"name": "video_branch_end_frames_branch_id_video_node_branches_id_fk",
+					"tableFrom": "video_branch_end_frames",
+					"tableTo": "video_node_branches",
+					"columnsFrom": ["branch_id"],
+					"columnsTo": ["id"],
+					"onDelete": "cascade",
+					"onUpdate": "no action"
+				}
+			},
+			"compositePrimaryKeys": {},
+			"uniqueConstraints": {},
+			"policies": {},
+			"checkConstraints": {},
+			"isRLSEnabled": false
+		},
+		"public.video_branch_failures": {
+			"name": "video_branch_failures",
+			"schema": "",
+			"columns": {
+				"id": {
+					"name": "id",
+					"type": "uuid",
+					"primaryKey": true,
+					"notNull": true,
+					"default": "gen_random_uuid()"
+				},
+				"branch_id": {
+					"name": "branch_id",
+					"type": "uuid",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"message": {
+					"name": "message",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"created_at": {
+					"name": "created_at",
+					"type": "timestamp with time zone",
+					"primaryKey": false,
+					"notNull": true,
+					"default": "now()"
+				}
+			},
+			"indexes": {},
+			"foreignKeys": {
+				"video_branch_failures_branch_id_video_node_branches_id_fk": {
+					"name": "video_branch_failures_branch_id_video_node_branches_id_fk",
+					"tableFrom": "video_branch_failures",
+					"tableTo": "video_node_branches",
+					"columnsFrom": ["branch_id"],
+					"columnsTo": ["id"],
+					"onDelete": "cascade",
+					"onUpdate": "no action"
+				}
+			},
+			"compositePrimaryKeys": {},
+			"uniqueConstraints": {},
+			"policies": {},
+			"checkConstraints": {},
+			"isRLSEnabled": false
+		},
+		"public.video_branch_jobs": {
+			"name": "video_branch_jobs",
+			"schema": "",
+			"columns": {
+				"branch_id": {
+					"name": "branch_id",
+					"type": "uuid",
+					"primaryKey": true,
+					"notNull": true
+				},
+				"provider_job_id": {
+					"name": "provider_job_id",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"provider_generation_id": {
+					"name": "provider_generation_id",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": false
+				}
+			},
+			"indexes": {},
+			"foreignKeys": {
+				"video_branch_jobs_branch_id_video_node_branches_id_fk": {
+					"name": "video_branch_jobs_branch_id_video_node_branches_id_fk",
+					"tableFrom": "video_branch_jobs",
+					"tableTo": "video_node_branches",
+					"columnsFrom": ["branch_id"],
+					"columnsTo": ["id"],
+					"onDelete": "cascade",
+					"onUpdate": "no action"
+				}
+			},
+			"compositePrimaryKeys": {},
+			"uniqueConstraints": {},
+			"policies": {},
+			"checkConstraints": {},
+			"isRLSEnabled": false
+		},
+		"public.video_branch_outputs": {
+			"name": "video_branch_outputs",
+			"schema": "",
+			"columns": {
+				"branch_id": {
+					"name": "branch_id",
+					"type": "uuid",
+					"primaryKey": true,
+					"notNull": true
+				},
+				"video_path": {
+					"name": "video_path",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				}
+			},
+			"indexes": {},
+			"foreignKeys": {
+				"video_branch_outputs_branch_id_video_node_branches_id_fk": {
+					"name": "video_branch_outputs_branch_id_video_node_branches_id_fk",
+					"tableFrom": "video_branch_outputs",
+					"tableTo": "video_node_branches",
+					"columnsFrom": ["branch_id"],
+					"columnsTo": ["id"],
+					"onDelete": "cascade",
+					"onUpdate": "no action"
+				}
+			},
+			"compositePrimaryKeys": {},
+			"uniqueConstraints": {},
+			"policies": {},
+			"checkConstraints": {},
+			"isRLSEnabled": false
+		},
+		"public.video_branch_provider_calls": {
+			"name": "video_branch_provider_calls",
+			"schema": "",
+			"columns": {
+				"id": {
+					"name": "id",
+					"type": "uuid",
+					"primaryKey": true,
+					"notNull": true,
+					"default": "gen_random_uuid()"
+				},
+				"branch_id": {
+					"name": "branch_id",
+					"type": "uuid",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"provider": {
+					"name": "provider",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"call_type": {
+					"name": "call_type",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"response": {
+					"name": "response",
+					"type": "jsonb",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"usage": {
+					"name": "usage",
+					"type": "jsonb",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"created_at": {
+					"name": "created_at",
+					"type": "timestamp with time zone",
+					"primaryKey": false,
+					"notNull": true,
+					"default": "now()"
+				}
+			},
+			"indexes": {},
+			"foreignKeys": {
+				"video_branch_provider_calls_branch_id_video_node_branches_id_fk": {
+					"name": "video_branch_provider_calls_branch_id_video_node_branches_id_fk",
+					"tableFrom": "video_branch_provider_calls",
+					"tableTo": "video_node_branches",
+					"columnsFrom": ["branch_id"],
+					"columnsTo": ["id"],
+					"onDelete": "cascade",
+					"onUpdate": "no action"
+				}
+			},
+			"compositePrimaryKeys": {},
+			"uniqueConstraints": {},
+			"policies": {},
+			"checkConstraints": {},
+			"isRLSEnabled": false
+		},
+		"public.video_node_branches": {
+			"name": "video_node_branches",
+			"schema": "",
+			"columns": {
+				"id": {
+					"name": "id",
+					"type": "uuid",
+					"primaryKey": true,
+					"notNull": true,
+					"default": "gen_random_uuid()"
+				},
+				"node_id": {
+					"name": "node_id",
+					"type": "uuid",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"kind": {
+					"name": "kind",
+					"type": "video_branch_kind",
+					"typeSchema": "public",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"prompt": {
+					"name": "prompt",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"outcome": {
+					"name": "outcome",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				}
+			},
+			"indexes": {
+				"video_node_branches_node_kind_idx": {
+					"name": "video_node_branches_node_kind_idx",
+					"columns": [
+						{
+							"expression": "node_id",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						},
+						{
+							"expression": "kind",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": true,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				}
+			},
+			"foreignKeys": {
+				"video_node_branches_node_id_video_nodes_id_fk": {
+					"name": "video_node_branches_node_id_video_nodes_id_fk",
+					"tableFrom": "video_node_branches",
+					"tableTo": "video_nodes",
+					"columnsFrom": ["node_id"],
+					"columnsTo": ["id"],
+					"onDelete": "cascade",
+					"onUpdate": "no action"
+				}
+			},
+			"compositePrimaryKeys": {},
+			"uniqueConstraints": {},
+			"policies": {},
+			"checkConstraints": {},
+			"isRLSEnabled": false
+		},
+		"public.video_node_failures": {
+			"name": "video_node_failures",
+			"schema": "",
+			"columns": {
+				"id": {
+					"name": "id",
+					"type": "uuid",
+					"primaryKey": true,
+					"notNull": true,
+					"default": "gen_random_uuid()"
+				},
+				"node_id": {
+					"name": "node_id",
+					"type": "uuid",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"message": {
+					"name": "message",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"created_at": {
+					"name": "created_at",
+					"type": "timestamp with time zone",
+					"primaryKey": false,
+					"notNull": true,
+					"default": "now()"
+				}
+			},
+			"indexes": {},
+			"foreignKeys": {
+				"video_node_failures_node_id_video_nodes_id_fk": {
+					"name": "video_node_failures_node_id_video_nodes_id_fk",
+					"tableFrom": "video_node_failures",
+					"tableTo": "video_nodes",
+					"columnsFrom": ["node_id"],
+					"columnsTo": ["id"],
+					"onDelete": "cascade",
+					"onUpdate": "no action"
+				}
+			},
+			"compositePrimaryKeys": {},
+			"uniqueConstraints": {},
+			"policies": {},
+			"checkConstraints": {},
+			"isRLSEnabled": false
+		},
+		"public.video_node_manifests": {
+			"name": "video_node_manifests",
+			"schema": "",
+			"columns": {
+				"node_id": {
+					"name": "node_id",
+					"type": "uuid",
+					"primaryKey": true,
+					"notNull": true
+				},
+				"node_title": {
+					"name": "node_title",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"scene_state": {
+					"name": "scene_state",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"continuity_notes": {
+					"name": "continuity_notes",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"next_state_intent": {
+					"name": "next_state_intent",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				}
+			},
+			"indexes": {},
+			"foreignKeys": {
+				"video_node_manifests_node_id_video_nodes_id_fk": {
+					"name": "video_node_manifests_node_id_video_nodes_id_fk",
+					"tableFrom": "video_node_manifests",
+					"tableTo": "video_nodes",
+					"columnsFrom": ["node_id"],
+					"columnsTo": ["id"],
+					"onDelete": "cascade",
+					"onUpdate": "no action"
+				}
+			},
+			"compositePrimaryKeys": {},
+			"uniqueConstraints": {},
+			"policies": {},
+			"checkConstraints": {},
+			"isRLSEnabled": false
+		},
+		"public.video_node_provider_calls": {
+			"name": "video_node_provider_calls",
+			"schema": "",
+			"columns": {
+				"id": {
+					"name": "id",
+					"type": "uuid",
+					"primaryKey": true,
+					"notNull": true,
+					"default": "gen_random_uuid()"
+				},
+				"node_id": {
+					"name": "node_id",
+					"type": "uuid",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"provider": {
+					"name": "provider",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"call_type": {
+					"name": "call_type",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"response": {
+					"name": "response",
+					"type": "jsonb",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"usage": {
+					"name": "usage",
+					"type": "jsonb",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"created_at": {
+					"name": "created_at",
+					"type": "timestamp with time zone",
+					"primaryKey": false,
+					"notNull": true,
+					"default": "now()"
+				}
+			},
+			"indexes": {},
+			"foreignKeys": {
+				"video_node_provider_calls_node_id_video_nodes_id_fk": {
+					"name": "video_node_provider_calls_node_id_video_nodes_id_fk",
+					"tableFrom": "video_node_provider_calls",
+					"tableTo": "video_nodes",
+					"columnsFrom": ["node_id"],
+					"columnsTo": ["id"],
+					"onDelete": "cascade",
+					"onUpdate": "no action"
+				}
+			},
+			"compositePrimaryKeys": {},
+			"uniqueConstraints": {},
+			"policies": {},
+			"checkConstraints": {},
+			"isRLSEnabled": false
+		},
+		"public.video_nodes": {
+			"name": "video_nodes",
+			"schema": "",
+			"columns": {
+				"id": {
+					"name": "id",
+					"type": "uuid",
+					"primaryKey": true,
+					"notNull": true,
+					"default": "gen_random_uuid()"
+				},
+				"run_id": {
+					"name": "run_id",
+					"type": "uuid",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"depth_index": {
+					"name": "depth_index",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"status": {
+					"name": "status",
+					"type": "video_node_status",
+					"typeSchema": "public",
+					"primaryKey": false,
+					"notNull": true,
+					"default": "'pending'"
+				},
+				"source_frame_path": {
+					"name": "source_frame_path",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"created_at": {
+					"name": "created_at",
+					"type": "timestamp with time zone",
+					"primaryKey": false,
+					"notNull": true,
+					"default": "now()"
+				},
+				"updated_at": {
+					"name": "updated_at",
+					"type": "timestamp with time zone",
+					"primaryKey": false,
+					"notNull": true,
+					"default": "now()"
+				}
+			},
+			"indexes": {
+				"video_nodes_run_depth_idx": {
+					"name": "video_nodes_run_depth_idx",
+					"columns": [
+						{
+							"expression": "run_id",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						},
+						{
+							"expression": "depth_index",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": true,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				}
+			},
+			"foreignKeys": {
+				"video_nodes_run_id_video_runs_id_fk": {
+					"name": "video_nodes_run_id_video_runs_id_fk",
+					"tableFrom": "video_nodes",
+					"tableTo": "video_runs",
+					"columnsFrom": ["run_id"],
+					"columnsTo": ["id"],
+					"onDelete": "cascade",
+					"onUpdate": "no action"
+				}
+			},
+			"compositePrimaryKeys": {},
+			"uniqueConstraints": {},
+			"policies": {},
+			"checkConstraints": {},
+			"isRLSEnabled": false
+		},
+		"public.video_run_failures": {
+			"name": "video_run_failures",
+			"schema": "",
+			"columns": {
+				"id": {
+					"name": "id",
+					"type": "uuid",
+					"primaryKey": true,
+					"notNull": true,
+					"default": "gen_random_uuid()"
+				},
+				"run_id": {
+					"name": "run_id",
+					"type": "uuid",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"message": {
+					"name": "message",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"created_at": {
+					"name": "created_at",
+					"type": "timestamp with time zone",
+					"primaryKey": false,
+					"notNull": true,
+					"default": "now()"
+				}
+			},
+			"indexes": {},
+			"foreignKeys": {
+				"video_run_failures_run_id_video_runs_id_fk": {
+					"name": "video_run_failures_run_id_video_runs_id_fk",
+					"tableFrom": "video_run_failures",
+					"tableTo": "video_runs",
+					"columnsFrom": ["run_id"],
+					"columnsTo": ["id"],
+					"onDelete": "cascade",
+					"onUpdate": "no action"
+				}
+			},
+			"compositePrimaryKeys": {},
+			"uniqueConstraints": {},
+			"policies": {},
+			"checkConstraints": {},
+			"isRLSEnabled": false
+		},
+		"public.video_run_provider_calls": {
+			"name": "video_run_provider_calls",
+			"schema": "",
+			"columns": {
+				"id": {
+					"name": "id",
+					"type": "uuid",
+					"primaryKey": true,
+					"notNull": true,
+					"default": "gen_random_uuid()"
+				},
+				"run_id": {
+					"name": "run_id",
+					"type": "uuid",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"provider": {
+					"name": "provider",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"call_type": {
+					"name": "call_type",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"response": {
+					"name": "response",
+					"type": "jsonb",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"usage": {
+					"name": "usage",
+					"type": "jsonb",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"created_at": {
+					"name": "created_at",
+					"type": "timestamp with time zone",
+					"primaryKey": false,
+					"notNull": true,
+					"default": "now()"
+				}
+			},
+			"indexes": {},
+			"foreignKeys": {
+				"video_run_provider_calls_run_id_video_runs_id_fk": {
+					"name": "video_run_provider_calls_run_id_video_runs_id_fk",
+					"tableFrom": "video_run_provider_calls",
+					"tableTo": "video_runs",
+					"columnsFrom": ["run_id"],
+					"columnsTo": ["id"],
+					"onDelete": "cascade",
+					"onUpdate": "no action"
+				}
+			},
+			"compositePrimaryKeys": {},
+			"uniqueConstraints": {},
+			"policies": {},
+			"checkConstraints": {},
+			"isRLSEnabled": false
+		},
+		"public.video_run_root_manifests": {
+			"name": "video_run_root_manifests",
+			"schema": "",
+			"columns": {
+				"run_id": {
+					"name": "run_id",
+					"type": "uuid",
+					"primaryKey": true,
+					"notNull": true
+				},
+				"title": {
+					"name": "title",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"style_bible": {
+					"name": "style_bible",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"world_state": {
+					"name": "world_state",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"start_image_prompt": {
+					"name": "start_image_prompt",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"branch_goal": {
+					"name": "branch_goal",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"node_count": {
+					"name": "node_count",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true
+				}
+			},
+			"indexes": {},
+			"foreignKeys": {
+				"video_run_root_manifests_run_id_video_runs_id_fk": {
+					"name": "video_run_root_manifests_run_id_video_runs_id_fk",
+					"tableFrom": "video_run_root_manifests",
+					"tableTo": "video_runs",
+					"columnsFrom": ["run_id"],
+					"columnsTo": ["id"],
+					"onDelete": "cascade",
+					"onUpdate": "no action"
+				}
+			},
+			"compositePrimaryKeys": {},
+			"uniqueConstraints": {},
+			"policies": {},
+			"checkConstraints": {},
+			"isRLSEnabled": false
+		},
+		"public.video_run_settings": {
+			"name": "video_run_settings",
+			"schema": "",
+			"columns": {
+				"run_id": {
+					"name": "run_id",
+					"type": "uuid",
+					"primaryKey": true,
+					"notNull": true
+				},
+				"depth": {
+					"name": "depth",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true,
+					"default": 5
+				},
+				"manifest_model": {
+					"name": "manifest_model",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"image_model": {
+					"name": "image_model",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"video_model": {
+					"name": "video_model",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"video_resolution": {
+					"name": "video_resolution",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true,
+					"default": "'720p'"
+				},
+				"video_duration": {
+					"name": "video_duration",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true,
+					"default": 5
+				},
+				"generate_audio": {
+					"name": "generate_audio",
+					"type": "boolean",
+					"primaryKey": false,
+					"notNull": true,
+					"default": true
+				}
+			},
+			"indexes": {},
+			"foreignKeys": {
+				"video_run_settings_run_id_video_runs_id_fk": {
+					"name": "video_run_settings_run_id_video_runs_id_fk",
+					"tableFrom": "video_run_settings",
+					"tableTo": "video_runs",
+					"columnsFrom": ["run_id"],
+					"columnsTo": ["id"],
+					"onDelete": "cascade",
+					"onUpdate": "no action"
+				}
+			},
+			"compositePrimaryKeys": {},
+			"uniqueConstraints": {},
+			"policies": {},
+			"checkConstraints": {},
+			"isRLSEnabled": false
+		},
+		"public.video_run_start_images": {
+			"name": "video_run_start_images",
+			"schema": "",
+			"columns": {
+				"run_id": {
+					"name": "run_id",
+					"type": "uuid",
+					"primaryKey": true,
+					"notNull": true
+				},
+				"path": {
+					"name": "path",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				}
+			},
+			"indexes": {},
+			"foreignKeys": {
+				"video_run_start_images_run_id_video_runs_id_fk": {
+					"name": "video_run_start_images_run_id_video_runs_id_fk",
+					"tableFrom": "video_run_start_images",
+					"tableTo": "video_runs",
+					"columnsFrom": ["run_id"],
+					"columnsTo": ["id"],
+					"onDelete": "cascade",
+					"onUpdate": "no action"
+				}
+			},
+			"compositePrimaryKeys": {},
+			"uniqueConstraints": {},
+			"policies": {},
+			"checkConstraints": {},
+			"isRLSEnabled": false
+		},
+		"public.video_runs": {
+			"name": "video_runs",
+			"schema": "",
+			"columns": {
+				"id": {
+					"name": "id",
+					"type": "uuid",
+					"primaryKey": true,
+					"notNull": true,
+					"default": "gen_random_uuid()"
+				},
+				"prompt": {
+					"name": "prompt",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"status": {
+					"name": "status",
+					"type": "video_run_status",
+					"typeSchema": "public",
+					"primaryKey": false,
+					"notNull": true,
+					"default": "'pending'"
+				},
+				"created_at": {
+					"name": "created_at",
+					"type": "timestamp with time zone",
+					"primaryKey": false,
+					"notNull": true,
+					"default": "now()"
+				},
+				"updated_at": {
+					"name": "updated_at",
+					"type": "timestamp with time zone",
+					"primaryKey": false,
+					"notNull": true,
+					"default": "now()"
+				}
+			},
+			"indexes": {},
+			"foreignKeys": {},
+			"compositePrimaryKeys": {},
+			"uniqueConstraints": {},
+			"policies": {},
+			"checkConstraints": {},
+			"isRLSEnabled": false
+		}
+	},
+	"enums": {
+		"public.video_branch_kind": {
+			"name": "video_branch_kind",
+			"schema": "public",
+			"values": ["success", "failure"]
+		},
+		"public.video_node_status": {
+			"name": "video_node_status",
+			"schema": "public",
+			"values": ["pending", "started", "completed", "failed"]
+		},
+		"public.video_run_status": {
+			"name": "video_run_status",
+			"schema": "public",
+			"values": ["pending", "started", "completed", "failed"]
+		}
+	},
+	"schemas": {},
+	"sequences": {},
+	"roles": {},
+	"policies": {},
+	"views": {},
+	"_meta": {
+		"columns": {},
+		"schemas": {},
+		"tables": {}
+	}
+}
