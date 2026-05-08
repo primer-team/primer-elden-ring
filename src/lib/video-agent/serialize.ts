@@ -104,3 +104,7 @@ export function serializeGeneration(generation: GenerationRecord) {
 		})),
 	};
 }
+
+export type SerializedGeneration = ReturnType<typeof serializeGeneration>;
+export type SerializedNode = NonNullable<SerializedGeneration["nodes"]>[number];
+export type SerializedBranch = SerializedNode["branches"][number];

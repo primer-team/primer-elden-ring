@@ -1,5 +1,7 @@
-import { App } from "@/App";
+"use client";
+
+import { Primer } from "@/components/primer";
 
 export default function Page() {
-	return <App />;
+	return <Primer />;
 }
