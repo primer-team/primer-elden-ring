@@ -10,7 +10,14 @@
 		"lint": "biome check",
 		"lint:fix": "biome check --write",
 		"format": "biome format --write",
-		"prepare": "lefthook install"
+		"prepare": "lefthook install",
+		"db:up": "docker compose up -d postgres",
+		"db:down": "docker compose down",
+		"db:logs": "docker compose logs -f postgres",
+		"db:generate": "drizzle-kit generate",
+		"db:migrate": "drizzle-kit migrate",
+		"db:push": "drizzle-kit push",
+		"db:studio": "drizzle-kit studio"
 	},
 	"dependencies": {
 		"@superbuilders/errors": "^3.0.2",
@@ -18,7 +25,9 @@
 		"@superbuilders/slog": "^4.0.0",
 		"@t3-oss/env-nextjs": "^0.13.11",
 		"clsx": "^2.1.1",
+		"drizzle-orm": "^0.45.2",
 		"next": "^16.2.6",
+		"postgres": "^3.4.9",
 		"react": "19.2.4",
 		"react-dom": "19.2.4",
 		"tailwind-merge": "^3.5.0",
@@ -31,6 +40,7 @@
 		"@types/node": "^20",
 		"@types/react": "^19",
 		"@types/react-dom": "^19",
+		"drizzle-kit": "^0.31.10",
 		"lefthook": "^2.1.6",
 		"postcss": "^8.5.0",
 		"tailwindcss": "^4",
