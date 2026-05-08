@@ -21,16 +21,16 @@ That's it. Sign-in, the lesson flow, correct/incorrect answers, errors — all h
 Before you start coding, you need to grab your secret key to connect the app so it actually works!
 
 **Step 1:** Open your code editor and find the file named `.env.example`.
-**Step 2:** Rename that file to just `.env`.
+**Step 2:** Rename that file to `.env.local`.
 **Step 3:** Open a web browser and go to exactly this URL:
 👉 **[https://primerlearn.dev/keys](https://primerlearn.dev/keys)** 👈
 **Step 4:** Sign in with your Google account if it asks you.
 **Step 5:** Copy your **Publishable Key** (it looks like a long password starting with `pk_`).
-**Step 6:** Go back to your `.env` file and replace `pk_replace_me` with the key you just copied.
+**Step 6:** Go back to your `.env.local` file and replace `pk_replace_me` with the key you just copied.
 
-Your `.env` file should look exactly like this when you're done:
+Your `.env.local` file should look exactly like this when you're done:
 ```env
-VITE_PRIMER_PUBLISHABLE_KEY=pk_live_your_actual_key_here_that_you_copied
+NEXT_PUBLIC_PRIMER_PUBLISHABLE_KEY=pk_live_your_actual_key_here_that_you_copied
 ```
 
 ## 2. Run the code
@@ -45,7 +45,7 @@ bun install
 bun dev
 ```
 
-Now, open **http://localhost:5173** in your browser. You should see "Sign in to Primer". Click it, sign in with Google, and you'll start a math lesson!
+Now, open **http://localhost:3000** in your browser. You should see "Sign in to Primer". Click it, sign in with Google, and you'll start a math lesson!
 
 ---
 
@@ -106,12 +106,12 @@ The `Primer` component takes care of everything inside it — you just drive you
 
 ## Deploying
 
-This is a static Vite app — push it to **Vercel** (or any static host).
+This is a Next.js app — push it to **Vercel** (or any host that runs Node).
 
 - Build command: `bun run build`
-- Output directory: `dist`
+- Start command: `bun run start`
 - Install command: `bun install`
-- Set the same `VITE_*` env vars in your host's environment settings.
+- Set the `NEXT_PUBLIC_*` env vars in your host's environment settings.
 
 ## Scripts
 

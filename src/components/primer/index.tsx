@@ -70,7 +70,7 @@ interface SessionFailure {
 
 const primerOptions = {
 	origin: PRIMER_ORIGIN,
-	publishableKey: env.VITE_PRIMER_PUBLISHABLE_KEY,
+	publishableKey: env.NEXT_PUBLIC_PRIMER_PUBLISHABLE_KEY,
 	subject: "math",
 	supportedPcis: ["urn:primer:pci:fraction-input"],
 	logger,
@@ -200,7 +200,7 @@ export function Primer(props: PrimerProps) {
 		setBootError(null);
 
 		// Fail fast if they didn't replace the template key!
-		if (env.VITE_PRIMER_PUBLISHABLE_KEY === "pk_replace_me") {
+		if (env.NEXT_PUBLIC_PRIMER_PUBLISHABLE_KEY === "pk_replace_me") {
 			setBootError({
 				kind: "config-invalid",
 				headline: "You need to set up your key!",

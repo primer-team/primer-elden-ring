@@ -1,15 +1,20 @@
+"use client";
+
+import Image from "next/image";
+
 import { Primer } from "@/components/primer";
 
 export function App() {
 	return (
 		<div className="flex min-h-screen flex-col bg-background text-foreground">
 			<header className="flex items-center gap-3 border-b border-border px-6 py-4">
-				<img
+				<Image
 					src="/primer-blackbg-icon.png"
 					alt="Primer"
 					width={32}
 					height={32}
 					className="rounded-md"
+					priority
 				/>
 				<span className="text-lg font-semibold tracking-tight">Primer</span>
 			</header>
