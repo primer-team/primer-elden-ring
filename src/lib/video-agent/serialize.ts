@@ -43,6 +43,8 @@ type GenerationRecord = {
 		manifestModel: string;
 		imageModel: string;
 		videoModel: string;
+		imageAspectRatio: string;
+		videoAspectRatio: string;
 		videoResolution: string;
 		videoDuration: number;
 		generateAudio: boolean;
@@ -79,6 +81,8 @@ export function serializeGeneration(generation: GenerationRecord) {
 		manifestModel: generation.settings?.manifestModel ?? null,
 		imageModel: generation.settings?.imageModel ?? null,
 		videoModel: generation.settings?.videoModel ?? null,
+		imageAspectRatio: generation.settings?.imageAspectRatio ?? null,
+		videoAspectRatio: generation.settings?.videoAspectRatio ?? null,
 		videoResolution: generation.settings?.videoResolution ?? null,
 		videoDuration: generation.settings?.videoDuration ?? 0,
 		generateAudio: generation.settings?.generateAudio ?? false,

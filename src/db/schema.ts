@@ -43,8 +43,10 @@ export const videoRunSettings = pgTable("video_run_settings", {
 	manifestModel: text("manifest_model").notNull(),
 	imageModel: text("image_model").notNull(),
 	videoModel: text("video_model").notNull(),
+	imageAspectRatio: text("image_aspect_ratio").notNull().default("16:9"),
+	videoAspectRatio: text("video_aspect_ratio").notNull().default("16:9"),
 	videoResolution: text("video_resolution").notNull().default("720p"),
-	videoDuration: integer("video_duration").notNull().default(5),
+	videoDuration: integer("video_duration").notNull().default(8),
 	generateAudio: boolean("generate_audio").notNull().default(true),
 });
 

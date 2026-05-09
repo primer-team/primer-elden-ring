@@ -17,7 +17,15 @@ import {
 	ErrMalformedAccessToken,
 } from "@superbuilders/primer-tives/errors";
 import * as logger from "@superbuilders/slog";
-import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
+import {
+	forwardRef,
+	type ReactNode,
+	useCallback,
+	useEffect,
+	useImperativeHandle,
+	useRef,
+	useState,
+} from "react";
 
 import { env } from "@/env";
 import { CompletedFrame } from "./completed-frame";
@@ -48,6 +56,10 @@ export interface PrimerProps {
 	onError?: (error: Error) => void;
 	onPhaseChange?: (phase: PrimerPhase) => void;
 	onAuthenticated?: () => void;
+}
+
+export interface PrimerHandle {
+	advance: () => void;
 }
 
 type SessionFailureKind =
@@ -175,7 +187,7 @@ function classifyBootError(err: Error): SessionFailure {
 	};
 }
 
-export function Primer(props: PrimerProps) {
+export const Primer = forwardRef<PrimerHandle, PrimerProps>(function Primer(props, ref) {
 	const startedRef = useRef(false);
 	const [state, setState] = useState<PrimerState<FractionPci> | null>(null);
 	const [isPending, setIsPending] = useState(true);
@@ -266,6 +278,8 @@ export function Primer(props: PrimerProps) {
 		if (state?.phase !== "observation" && state?.phase !== "feedback") return;
 		run(() => state.advance());
 	}, [state, run]);
+
+	useImperativeHandle(ref, () => ({ advance: handleAdvance }), [handleAdvance]);
 
 	const handleRetry = useCallback(() => {
 		if (state?.phase !== "errored") return;
@@ -469,7 +483,7 @@ export function Primer(props: PrimerProps) {
 			}
 		}
 	}
-}
+});
 
 function UnauthenticatedFrame({
 	state,

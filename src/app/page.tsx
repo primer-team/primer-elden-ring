@@ -1,7 +1,9 @@
-"use client";
+import { GameShell } from "@/components/game/game-shell";
+import { listCompletedRunSummaries } from "@/lib/video-agent/pipeline";
 
-import { Primer } from "@/components/primer";
+export const dynamic = "force-dynamic";
 
-export default function Page() {
-	return <Primer />;
+export default async function Page() {
+	const completedRuns = await listCompletedRunSummaries();
+	return <GameShell completedRuns={completedRuns} />;
 }

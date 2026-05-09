@@ -61,7 +61,7 @@ export function BranchCard({
 			{branch.error ? <p className="text-destructive text-xs">{branch.error}</p> : null}
 
 			<div className="space-y-1.5 text-xs">
-				<p className="line-clamp-3 text-foreground/80">{branch.prompt}</p>
+				<p className="line-clamp-6 whitespace-pre-line text-foreground/80">{branch.prompt}</p>
 				<p className="text-muted-foreground">
 					<span className="font-medium text-foreground/70">Outcome:</span> {branch.outcome}
 				</p>

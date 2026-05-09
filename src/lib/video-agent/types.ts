@@ -1,7 +1,29 @@
 export type GenerationStatus = "pending" | "started" | "completed" | "failed";
 export type VideoBranchKind = "success" | "failure";
 
+export interface ShotSpec {
+	subject: string;
+	action: string;
+	scene: string;
+	camera: string;
+	style: string;
+	lighting: string;
+	audio: string;
+	constraints: string;
+}
+
 export interface NodeManifest {
+	nodeTitle: string;
+	sceneState: string;
+	successShot: ShotSpec;
+	failureShot: ShotSpec;
+	successOutcome: string;
+	failureOutcome: string;
+	continuityNotes: string;
+	nextStateIntent: string;
+}
+
+export interface PreviousNodeManifest {
 	nodeTitle: string;
 	sceneState: string;
 	successPrompt: string;

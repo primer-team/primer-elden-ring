@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
+import { Button } from "@/components/primer/ui/button";
 import { relativeTime } from "@/components/runs/relative-time";
 import { RunTimeline } from "@/components/runs/run-timeline";
 import { StatusPill } from "@/components/runs/status-pill";
@@ -16,6 +17,8 @@ function isLive(status: string) {
 
 export function RunDetailClient({ initialRun }: { initialRun: SerializedGeneration }) {
 	const [run, setRun] = useState(initialRun);
+	const [isRetrying, setIsRetrying] = useState(false);
+	const [retryError, setRetryError] = useState<string | null>(null);
 
 	useEffect(() => {
 		if (!isLive(run.status)) return;
@@ -38,7 +41,31 @@ export function RunDetailClient({ initialRun }: { initialRun: SerializedGenerati
 		};
 	}, [run.id, run.status]);
 
+	async function retryRun() {
+		setIsRetrying(true);
+		setRetryError(null);
+		try {
+			const response = await fetch(`/api/video-generations/${run.id}/retry`, {
+				method: "POST",
+				cache: "no-store",
+			});
+			const body = (await response.json()) as {
+				generation?: SerializedGeneration;
+				error?: string;
+			};
+			if (!response.ok || !body.generation) {
+				throw new Error(body.error ?? "Failed to retry workflow.");
+			}
+			setRun(body.generation);
+		} catch (error) {
+			setRetryError(error instanceof Error ? error.message : "Failed to retry workflow.");
+		} finally {
+			setIsRetrying(false);
+		}
+	}
+
 	const nodes = run.nodes ?? [];
+	const canRetry = run.status === "failed";
 
 	return (
 		<div className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-4 py-8 md:px-8">
@@ -54,17 +81,25 @@ export function RunDetailClient({ initialRun }: { initialRun: SerializedGenerati
 			<header className="rounded-3xl border border-border bg-card p-5 shadow-sm">
 				<div className="flex flex-wrap items-start justify-between gap-3">
 					<div className="flex-1 min-w-0">
-						<div className="mb-2 flex items-center gap-2">
-							<StatusPill status={run.status} />
-							<span className="text-muted-foreground text-xs">
-								Started {relativeTime(run.createdAt)}
-							</span>
+						<div className="mb-2 flex flex-wrap items-center gap-2">
+							<div className="flex items-center gap-2">
+								<StatusPill status={run.status} />
+								<span className="text-muted-foreground text-xs">
+									Started {relativeTime(run.createdAt)}
+								</span>
+							</div>
+							{canRetry ? (
+								<Button size="sm" variant="outline" disabled={isRetrying} onClick={retryRun}>
+									{isRetrying ? "Retrying..." : "Retry failed step"}
+								</Button>
+							) : null}
 						</div>
 						<h1 className="font-semibold text-xl tracking-tight">
 							{run.rootManifest?.title ?? "Untitled run"}
 						</h1>
 						<p className="mt-1 text-foreground/80 text-sm">{run.prompt}</p>
 						{run.error ? <p className="mt-2 text-destructive text-sm">{run.error}</p> : null}
+						{retryError ? <p className="mt-2 text-destructive text-sm">{retryError}</p> : null}
 					</div>
 					{run.startImageUrl ? (
 						<img
@@ -77,10 +112,18 @@ export function RunDetailClient({ initialRun }: { initialRun: SerializedGenerati
 					)}
 				</div>
 
-				<dl className="mt-4 grid gap-x-6 gap-y-1 text-xs sm:grid-cols-2 md:grid-cols-4">
+				<dl className="mt-4 grid gap-x-6 gap-y-1 text-xs sm:grid-cols-2 md:grid-cols-5">
 					<div>
 						<dt className="text-muted-foreground">Model</dt>
 						<dd className="text-foreground/90">{run.videoModel ?? "—"}</dd>
+					</div>
+					<div>
+						<dt className="text-muted-foreground">Aspect</dt>
+						<dd className="text-foreground/90">
+							{run.imageAspectRatio && run.videoAspectRatio
+								? `${run.imageAspectRatio} image / ${run.videoAspectRatio} video`
+								: "—"}
+						</dd>
 					</div>
 					<div>
 						<dt className="text-muted-foreground">Resolution</dt>

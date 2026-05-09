@@ -1,6 +1,6 @@
 import "server-only";
 
-import { asc, eq } from "drizzle-orm";
+import { asc, desc, eq } from "drizzle-orm";
 import { db } from "@/db";
 import {
 	videoBranchEndFrames,
@@ -25,21 +25,25 @@ import {
 	createNodeManifest,
 	createRootManifest,
 	downloadVideo,
+	formatSeedancePrompt,
 	generateStartImage,
 	submitSeedanceVideo,
 	waitForVideo,
 } from "./openrouter";
 import {
+	assetUrl,
 	extractFinalFrame,
 	generationFileToDataUrl,
 	writeDataUrlFile,
 	writeGenerationFile,
 } from "./storage";
-import type { NodeManifest, OpenRouterUsage } from "./types";
+import type { OpenRouterUsage, PreviousNodeManifest, RootManifest } from "./types";
 
 const NODE_COUNT = 5;
-const VIDEO_DURATION_SECONDS = 5;
+const VIDEO_DURATION_SECONDS = 8;
 const VIDEO_RESOLUTION = "720p";
+const IMAGE_ASPECT_RATIO = "16:9";
+const VIDEO_ASPECT_RATIO = "16:9";
 const GENERATE_AUDIO = true;
 
 function now() {
@@ -73,6 +77,8 @@ export async function createVideoGeneration(prompt: string) {
 		manifestModel: env.OPENROUTER_MANIFEST_MODEL,
 		imageModel: env.OPENROUTER_IMAGE_MODEL,
 		videoModel: env.OPENROUTER_VIDEO_MODEL,
+		imageAspectRatio: IMAGE_ASPECT_RATIO,
+		videoAspectRatio: VIDEO_ASPECT_RATIO,
 		videoResolution: VIDEO_RESOLUTION,
 		videoDuration: VIDEO_DURATION_SECONDS,
 		generateAudio: GENERATE_AUDIO,
@@ -85,6 +91,35 @@ export async function createVideoGeneration(prompt: string) {
 		throw new Error("Failed to load created video generation.");
 	}
 	return generation;
+}
+
+export async function retryVideoGeneration(id: string) {
+	const generation = await getVideoGeneration(id);
+	if (!generation) {
+		throw new Error("Video generation not found.");
+	}
+	if (generation.status === "pending" || generation.status === "started") {
+		throw new Error("Video generation is already running.");
+	}
+
+	const retryFromNode = generation.nodes.find((node) => node.status !== "completed");
+	if (retryFromNode) {
+		for (const node of generation.nodes.filter(
+			(existingNode) => existingNode.depthIndex >= retryFromNode.depthIndex,
+		)) {
+			await db.delete(videoNodes).where(eq(videoNodes.id, node.id));
+		}
+	}
+
+	await db.delete(videoRunFailures).where(eq(videoRunFailures.runId, id));
+	await updateRun(id, { status: "pending" });
+	void runVideoGeneration(id).catch(() => undefined);
+
+	const retried = await getVideoGeneration(id);
+	if (!retried) {
+		throw new Error("Failed to load retried video generation.");
+	}
+	return retried;
 }
 
 export async function getVideoGeneration(id: string) {
@@ -139,6 +174,32 @@ export async function listVideoGenerations() {
 			failures: true,
 		},
 	});
+}
+
+export interface CompletedRunSummary {
+	id: string;
+	prompt: string;
+	createdAt: string;
+	title: string | null;
+	startImageUrl: string | null;
+}
+
+export async function listCompletedRunSummaries(): Promise<CompletedRunSummary[]> {
+	const rows = await db.query.videoRuns.findMany({
+		where: eq(videoRuns.status, "completed"),
+		orderBy: [desc(videoRuns.createdAt)],
+		with: {
+			rootManifest: true,
+			startImage: true,
+		},
+	});
+	return rows.map((row) => ({
+		id: row.id,
+		prompt: row.prompt,
+		createdAt: row.createdAt.toISOString(),
+		title: row.rootManifest?.title ?? null,
+		startImageUrl: row.startImage?.path ? assetUrl(row.id, row.startImage.path) : null,
+	}));
 }
 
 async function updateRun(runId: string, values: Partial<typeof videoRuns.$inferInsert>) {
@@ -224,6 +285,7 @@ async function createVideoFromFrame(input: {
 	seed: number;
 	videoDuration: number;
 	videoResolution: string;
+	videoAspectRatio: string;
 	generateAudio: boolean;
 }) {
 	try {
@@ -237,6 +299,7 @@ async function createVideoFromFrame(input: {
 			firstFrameDataUrl,
 			duration: input.videoDuration,
 			resolution: input.videoResolution,
+			aspectRatio: input.videoAspectRatio,
 			generateAudio: input.generateAudio,
 			seed: input.seed,
 		});
@@ -274,7 +337,7 @@ async function createVideoFromFrame(input: {
 export async function runVideoGeneration(runId: string) {
 	const run = await db.query.videoRuns.findFirst({
 		where: eq(videoRuns.id, runId),
-		with: { settings: true },
+		with: { settings: true, rootManifest: true, startImage: true },
 	});
 	if (!run) {
 		throw new Error(`Video generation ${runId} not found.`);
@@ -286,38 +349,92 @@ export async function runVideoGeneration(runId: string) {
 	await updateRun(runId, { status: "started" });
 
 	try {
-		const root = await createRootManifest(run.prompt, run.settings.depth);
-		const rootManifest = root.manifest;
-		await db.insert(videoRunRootManifests).values({
-			runId,
-			title: rootManifest.title,
-			styleBible: rootManifest.styleBible,
-			worldState: rootManifest.worldState,
-			startImagePrompt: rootManifest.startImagePrompt,
-			branchGoal: rootManifest.branchGoal,
-			nodeCount: rootManifest.nodeCount,
-		});
-		await insertRunProviderCall({
-			runId,
-			callType: "root_manifest",
-			response: root.response,
-			usage: root.usage,
-		});
+		let rootManifest: RootManifest;
+		if (run.rootManifest) {
+			rootManifest = {
+				title: run.rootManifest.title,
+				styleBible: run.rootManifest.styleBible,
+				worldState: run.rootManifest.worldState,
+				startImagePrompt: run.rootManifest.startImagePrompt,
+				branchGoal: run.rootManifest.branchGoal,
+				nodeCount: run.rootManifest.nodeCount,
+			};
+		} else {
+			const root = await createRootManifest(
+				run.prompt,
+				run.settings.depth,
+				run.settings.imageAspectRatio,
+			);
+			rootManifest = root.manifest;
+			await db.insert(videoRunRootManifests).values({
+				runId,
+				title: rootManifest.title,
+				styleBible: rootManifest.styleBible,
+				worldState: rootManifest.worldState,
+				startImagePrompt: rootManifest.startImagePrompt,
+				branchGoal: rootManifest.branchGoal,
+				nodeCount: rootManifest.nodeCount,
+			});
+			await insertRunProviderCall({
+				runId,
+				callType: "root_manifest",
+				response: root.response,
+				usage: root.usage,
+			});
+		}
 
-		const startImage = await generateStartImage(rootManifest.startImagePrompt);
-		const startImagePath = await writeDataUrlFile(runId, "start.png", startImage.imageUrl);
-		await db.insert(videoRunStartImages).values({ runId, path: startImagePath });
-		await insertRunProviderCall({
-			runId,
-			callType: "start_image",
-			response: startImage.response,
-			usage: startImage.usage,
-		});
+		let startImagePath = run.startImage?.path;
+		if (!startImagePath) {
+			const startImage = await generateStartImage(
+				rootManifest.startImagePrompt,
+				run.settings.imageAspectRatio,
+			);
+			startImagePath = await writeDataUrlFile(runId, "start.png", startImage.imageUrl);
+			await db.insert(videoRunStartImages).values({ runId, path: startImagePath });
+			await insertRunProviderCall({
+				runId,
+				callType: "start_image",
+				response: startImage.response,
+				usage: startImage.usage,
+			});
+		}
 
 		let currentFramePath = startImagePath;
-		const nodeManifests: NodeManifest[] = [];
+		const nodeManifests: PreviousNodeManifest[] = [];
+		const existingNodes = await db.query.videoNodes.findMany({
+			where: eq(videoNodes.runId, runId),
+			orderBy: [asc(videoNodes.depthIndex)],
+			with: {
+				manifest: true,
+				branches: { with: { endFrame: true } },
+			},
+		});
+		let lastCompletedNodeIndex = 0;
 
-		for (let nodeIndex = 1; nodeIndex <= run.settings.depth; nodeIndex += 1) {
+		for (const node of existingNodes) {
+			const successBranch = node.branches.find((branch) => branch.kind === "success");
+			if (node.status !== "completed" || !node.manifest || !successBranch?.endFrame) {
+				break;
+			}
+			currentFramePath = successBranch.endFrame.framePath;
+			nodeManifests.push({
+				nodeTitle: node.manifest.nodeTitle,
+				sceneState: node.manifest.sceneState,
+				successPrompt: successBranch.prompt,
+				failurePrompt: node.branches.find((branch) => branch.kind === "failure")?.prompt ?? "",
+				successOutcome: successBranch.outcome,
+				failureOutcome: node.branches.find((branch) => branch.kind === "failure")?.outcome ?? "",
+				continuityNotes: node.manifest.continuityNotes,
+				nextStateIntent: node.manifest.nextStateIntent,
+			});
+			lastCompletedNodeIndex = node.depthIndex;
+		}
+
+		for (
+			let nodeIndex = lastCompletedNodeIndex + 1;
+			nodeIndex <= run.settings.depth;
+			nodeIndex += 1
+		) {
 			const [node] = await db
 				.insert(videoNodes)
 				.values({
@@ -342,10 +459,29 @@ export async function runVideoGeneration(runId: string) {
 					rootManifest,
 					previousNodeManifests: nodeManifests,
 					nodeIndex,
+					clipDuration: run.settings.videoDuration,
+					aspectRatio: run.settings.videoAspectRatio,
 					sourceFrameDataUrl,
 				});
 				const nodeManifest = nodeResult.manifest;
-				nodeManifests.push(nodeManifest);
+				const successPrompt = formatSeedancePrompt(
+					nodeManifest.successShot,
+					run.settings.videoDuration,
+				);
+				const failurePrompt = formatSeedancePrompt(
+					nodeManifest.failureShot,
+					run.settings.videoDuration,
+				);
+				nodeManifests.push({
+					nodeTitle: nodeManifest.nodeTitle,
+					sceneState: nodeManifest.sceneState,
+					successPrompt,
+					failurePrompt,
+					successOutcome: nodeManifest.successOutcome,
+					failureOutcome: nodeManifest.failureOutcome,
+					continuityNotes: nodeManifest.continuityNotes,
+					nextStateIntent: nodeManifest.nextStateIntent,
+				});
 
 				await db.insert(videoNodeManifests).values({
 					nodeId: node.id,
@@ -367,13 +503,13 @@ export async function runVideoGeneration(runId: string) {
 						{
 							nodeId: node.id,
 							kind: "success",
-							prompt: nodeManifest.successPrompt,
+							prompt: successPrompt,
 							outcome: nodeManifest.successOutcome,
 						},
 						{
 							nodeId: node.id,
 							kind: "failure",
-							prompt: nodeManifest.failurePrompt,
+							prompt: failurePrompt,
 							outcome: nodeManifest.failureOutcome,
 						},
 					])
@@ -389,11 +525,12 @@ export async function runVideoGeneration(runId: string) {
 						branchId: successBranch.id,
 						nodeIndex,
 						branchKind: "success",
-						prompt: nodeManifest.successPrompt,
+						prompt: successPrompt,
 						firstFramePath: currentFramePath,
 						seed: nodeIndex,
 						videoDuration: run.settings.videoDuration,
 						videoResolution: run.settings.videoResolution,
+						videoAspectRatio: run.settings.videoAspectRatio,
 						generateAudio: run.settings.generateAudio,
 					}),
 					createVideoFromFrame({
@@ -401,11 +538,12 @@ export async function runVideoGeneration(runId: string) {
 						branchId: failureBranch.id,
 						nodeIndex,
 						branchKind: "failure",
-						prompt: nodeManifest.failurePrompt,
+						prompt: failurePrompt,
 						firstFramePath: currentFramePath,
 						seed: nodeIndex + 100,
 						videoDuration: run.settings.videoDuration,
 						videoResolution: run.settings.videoResolution,
+						videoAspectRatio: run.settings.videoAspectRatio,
 						generateAudio: run.settings.generateAudio,
 					}),
 				]);

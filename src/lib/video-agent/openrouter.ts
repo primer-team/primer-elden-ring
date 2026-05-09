@@ -5,12 +5,69 @@ import type {
 	ManifestResult,
 	NodeManifest,
 	OpenRouterUsage,
+	PreviousNodeManifest,
 	RootManifest,
+	ShotSpec,
 	VideoGenerationJob,
 	VideoGenerationResult,
 } from "./types";
 
 const OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1";
+
+const SHOT_SPEC_SCHEMA = {
+	type: "object",
+	additionalProperties: false,
+	required: ["subject", "action", "scene", "camera", "style", "lighting", "audio", "constraints"],
+	properties: {
+		subject: { type: "string" },
+		action: { type: "string" },
+		scene: { type: "string" },
+		camera: { type: "string" },
+		style: { type: "string" },
+		lighting: { type: "string" },
+		audio: { type: "string" },
+		constraints: { type: "string" },
+	},
+} satisfies Record<string, unknown>;
+
+const ROOT_MANIFEST_SCHEMA = {
+	type: "object",
+	additionalProperties: false,
+	required: ["title", "styleBible", "worldState", "startImagePrompt", "branchGoal", "nodeCount"],
+	properties: {
+		title: { type: "string" },
+		styleBible: { type: "string" },
+		worldState: { type: "string" },
+		startImagePrompt: { type: "string" },
+		branchGoal: { type: "string" },
+		nodeCount: { type: "integer" },
+	},
+} satisfies Record<string, unknown>;
+
+const NODE_MANIFEST_SCHEMA = {
+	type: "object",
+	additionalProperties: false,
+	required: [
+		"nodeTitle",
+		"sceneState",
+		"successShot",
+		"failureShot",
+		"successOutcome",
+		"failureOutcome",
+		"continuityNotes",
+		"nextStateIntent",
+	],
+	properties: {
+		nodeTitle: { type: "string" },
+		sceneState: { type: "string" },
+		successShot: SHOT_SPEC_SCHEMA,
+		failureShot: SHOT_SPEC_SCHEMA,
+		successOutcome: { type: "string" },
+		failureOutcome: { type: "string" },
+		continuityNotes: { type: "string" },
+		nextStateIntent: { type: "string" },
+	},
+} satisfies Record<string, unknown>;
 
 type ChatContentPart =
 	| { type: "text"; text: string }
@@ -109,6 +166,16 @@ function textField(record: UnknownRecord, fieldName: string, ...keys: string[]) 
 	throw new Error(`Manifest missing required string field: ${fieldName}.`);
 }
 
+function objectField(record: UnknownRecord, fieldName: string, ...keys: string[]) {
+	for (const key of keys) {
+		const value = record[key];
+		if (isRecord(value)) {
+			return value;
+		}
+	}
+	throw new Error(`Manifest missing required object field: ${fieldName}.`);
+}
+
 function limitWords(value: string, maxWords: number) {
 	const words = value.split(" ");
 	if (words.length <= maxWords) {
@@ -160,24 +227,34 @@ function normalizeRootManifest(value: unknown): RootManifest {
 	};
 }
 
+function normalizeShotSpec(value: unknown, fieldName: string): ShotSpec {
+	if (!isRecord(value)) {
+		throw new Error(`Manifest field ${fieldName} must be an object.`);
+	}
+	return {
+		subject: conciseTextField(value, `${fieldName}.subject`, 22, "subject"),
+		action: conciseTextField(value, `${fieldName}.action`, 30, "action"),
+		scene: conciseTextField(value, `${fieldName}.scene`, 34, "scene"),
+		camera: conciseTextField(value, `${fieldName}.camera`, 26, "camera"),
+		style: conciseTextField(value, `${fieldName}.style`, 22, "style"),
+		lighting: conciseTextField(value, `${fieldName}.lighting`, 22, "lighting"),
+		audio: conciseTextField(value, `${fieldName}.audio`, 22, "audio"),
+		constraints: conciseTextField(value, `${fieldName}.constraints`, 42, "constraints"),
+	};
+}
+
 function normalizeNodeManifest(value: unknown): NodeManifest {
 	const manifest = unwrapManifest(value, "manifest", "nodeManifest", "node_manifest");
 	return {
 		nodeTitle: conciseTextField(manifest, "nodeTitle", 7, "nodeTitle", "node_title", "title"),
 		sceneState: conciseTextField(manifest, "sceneState", 18, "sceneState", "scene_state"),
-		successPrompt: conciseTextField(
-			manifest,
-			"successPrompt",
-			45,
-			"successPrompt",
-			"success_prompt",
+		successShot: normalizeShotSpec(
+			objectField(manifest, "successShot", "successShot", "success_shot"),
+			"successShot",
 		),
-		failurePrompt: conciseTextField(
-			manifest,
-			"failurePrompt",
-			45,
-			"failurePrompt",
-			"failure_prompt",
+		failureShot: normalizeShotSpec(
+			objectField(manifest, "failureShot", "failureShot", "failure_shot"),
+			"failureShot",
 		),
 		successOutcome: conciseTextField(
 			manifest,
@@ -210,16 +287,26 @@ function normalizeNodeManifest(value: unknown): NodeManifest {
 	};
 }
 
-async function fetchStructuredManifest(messages: ChatMessage[]) {
+async function fetchStructuredManifest(
+	messages: ChatMessage[],
+	responseSchema: { name: string; schema: Record<string, unknown> },
+) {
 	return openRouterJson<ChatCompletionResponse>("/chat/completions", {
 		method: "POST",
 		body: JSON.stringify({
 			model: env.OPENROUTER_MANIFEST_MODEL,
 			messages,
 			temperature: 0.25,
-			reasoning: { effort: "medium", summary: "concise" },
-			response_format: { type: "json_object" },
-			max_tokens: 1400,
+			reasoning: { effort: "high", summary: "concise" },
+			response_format: {
+				type: "json_schema",
+				json_schema: {
+					name: responseSchema.name,
+					strict: true,
+					schema: responseSchema.schema,
+				},
+			},
+			max_tokens: 2200,
 		}),
 	});
 }
@@ -227,12 +314,13 @@ async function fetchStructuredManifest(messages: ChatMessage[]) {
 async function structuredManifest<TManifest>(
 	messages: ChatMessage[],
 	normalize: (value: unknown) => TManifest,
+	responseSchema: { name: string; schema: Record<string, unknown> },
 ) {
 	let currentMessages = messages;
 	let lastError: unknown;
 
 	for (let attempt = 0; attempt < 2; attempt += 1) {
-		const response = await fetchStructuredManifest(currentMessages);
+		const response = await fetchStructuredManifest(currentMessages, responseSchema);
 		const content = response.choices?.[0]?.message?.content;
 		try {
 			return {
@@ -246,7 +334,7 @@ async function structuredManifest<TManifest>(
 				...messages,
 				{
 					role: "user",
-					content: `Previous JSON was invalid: ${errorMessage(error)}. Return only the requested JSON object. Every required key must be present. Keep every value short and direct.`,
+					content: `Previous JSON was invalid: ${errorMessage(error)}. Return only JSON matching the schema. Every required key must be present. Keep every value short and direct.`,
 				},
 			];
 		}
@@ -255,27 +343,43 @@ async function structuredManifest<TManifest>(
 	throw new Error(`Invalid manifest response: ${errorMessage(lastError)}.`);
 }
 
-export async function createRootManifest(prompt: string, nodeCount: number) {
+export function formatSeedancePrompt(shot: ShotSpec, duration: number) {
+	return [
+		`Subject: ${shot.subject}`,
+		`Action: ${shot.action}`,
+		`Scene: ${shot.scene}`,
+		`Camera: ${shot.camera}`,
+		`Style: ${shot.style}`,
+		`Lighting: ${shot.lighting}`,
+		`Audio: ${shot.audio}`,
+		`Constraints: ${shot.constraints} One continuous ${duration}-second shot. No cuts. No zoom unless explicitly requested. No sudden camera angle changes. Stay in the same scene as the source frame. Do not turn the camera around or reveal a new location. Keep character, outfit, lighting, and world layout consistent. No text overlays or HUD unless explicitly requested.`,
+	].join("\n");
+}
+
+export async function createRootManifest(prompt: string, nodeCount: number, aspectRatio: string) {
 	return structuredManifest<RootManifest>(
 		[
 			{
 				role: "system",
 				content:
-					"You create terse cinematic branch-video manifests for image and image-to-video models. Preserve the user's main premise exactly. Return only valid JSON with the exact requested camelCase keys.",
+					"You create structured cinematic video-game shot manifests for image and image-to-video models. Preserve the user's main premise exactly. Return only JSON matching the requested schema.",
 			},
 			{
 				role: "user",
-				content: `Create a root manifest for a branching video generation. User prompt: ${prompt}\nNode count: ${nodeCount}\nReturn exactly these JSON keys: title, styleBible, worldState, startImagePrompt, branchGoal, nodeCount.\nRules:\n- Be direct. No long prose. No ornate adjective stacks.\n- title: 3-8 words.\n- styleBible: 1 short sentence, under 25 words.\n- worldState: 1 short sentence, under 20 words.\n- branchGoal: 1 short sentence, under 18 words.\n- startImagePrompt: 1-2 direct sentences, under 45 words.\n- Keep the user's core premise, genre, main character, objective, and world intact.\n- startImagePrompt must show one third-person first frame with the main character and immediate premise.\n- Do not show the challenge completed. Do not introduce extra protagonists, first-person POV, or premise drift.`,
+				content: `Create a root manifest for a branching cinematic video-game shot generator. User prompt: ${prompt}\nNode count: ${nodeCount}\nAspect ratio: ${aspectRatio}\nReturn exactly these JSON keys: title, styleBible, worldState, startImagePrompt, branchGoal, nodeCount.\nRules:\n- Be direct. No long prose. No ornate adjective stacks.\n- title: 3-8 words.\n- styleBible: 1 short sentence, under 25 words, defining the cinematic game look.\n- worldState: 1 short sentence, under 20 words, defining the fixed location and current game-state.\n- branchGoal: 1 short sentence, under 18 words.\n- startImagePrompt: 1-2 direct sentences, under 45 words.\n- Keep the user's core premise, genre, main character, objective, and world intact.\n- startImagePrompt must be a third-person ${aspectRatio} cinematic game frame with the main character, fixed scene, and immediate premise.\n- The scene should be spatially stable and easy to continue: clear foreground subject, readable environment, no montage.\n- Do not show the challenge completed. Do not introduce extra protagonists, first-person POV, UI, HUD, subtitles, or premise drift.`,
 			},
 		],
 		normalizeRootManifest,
+		{ name: "root_manifest", schema: ROOT_MANIFEST_SCHEMA },
 	);
 }
 
 export async function createNodeManifest(input: {
 	rootManifest: RootManifest;
-	previousNodeManifests: NodeManifest[];
+	previousNodeManifests: PreviousNodeManifest[];
 	nodeIndex: number;
+	clipDuration: number;
+	aspectRatio: string;
 	sourceFrameDataUrl: string;
 }) {
 	return structuredManifest<NodeManifest>(
@@ -283,14 +387,14 @@ export async function createNodeManifest(input: {
 			{
 				role: "system",
 				content:
-					"You write terse Seedance 2.0 image-to-video prompts. Preserve the root premise and supplied source frame exactly. Return only valid JSON with the exact requested camelCase keys.",
+					"You write structured Seedance 2.0 image-to-video shot specs for cinematic video-game clips. Preserve the root premise and supplied source frame exactly. Return only JSON matching the requested schema.",
 			},
 			{
 				role: "user",
 				content: [
 					{
 						type: "text",
-						text: `Root manifest: ${JSON.stringify(input.rootManifest)}\nPrevious node manifests: ${JSON.stringify(input.previousNodeManifests)}\nCurrent node index: ${input.nodeIndex}\nReturn exactly these JSON keys: nodeTitle, sceneState, successPrompt, failurePrompt, successOutcome, failureOutcome, continuityNotes, nextStateIntent.\nRules:\n- Be very direct and clean. No long descriptions. No lore dumps. No ornate adjective stacks.\n- nodeTitle: 3-7 words.\n- sceneState, successOutcome, failureOutcome, continuityNotes, nextStateIntent: each 1 short sentence, under 18 words.\n- successPrompt and failurePrompt: each 1-2 short sentences, 25-45 words total.\n- Start from the exact source image. Keep character, costume, camera, setting, lighting, and premise unchanged.\n- Third-person perspective on the main character for the whole 5-second clip.\n- One simple interaction only. No montage, cuts, time jumps, new locations, or sudden new characters.\n- Success and failure are opposite outcomes of the same immediate action.`,
+						text: `Root manifest: ${JSON.stringify(input.rootManifest)}\nPrevious node manifests: ${JSON.stringify(input.previousNodeManifests)}\nCurrent node index: ${input.nodeIndex}\nClip duration: ${input.clipDuration} seconds\nAspect ratio: ${input.aspectRatio}\nReturn exactly these JSON keys: nodeTitle, sceneState, successShot, failureShot, successOutcome, failureOutcome, continuityNotes, nextStateIntent.\nEach shot object must contain exactly: subject, action, scene, camera, style, lighting, audio, constraints.\nRules:\n- Be very direct and clean. No long descriptions. No lore dumps. No ornate adjective stacks.\n- nodeTitle: 3-7 words.\n- sceneState, successOutcome, failureOutcome, continuityNotes, nextStateIntent: each 1 short sentence, under 18 words.\n- Start from the exact source image. Keep character, costume, setting, lighting, and premise unchanged.\n- This is a third-person cinematic video-game shot for the whole clip.\n- Keep the camera mostly fixed to the current scene. Use one stable camera instruction only, like static medium shot, slow push-in, or subtle side tracking.\n- Do not turn the camera around, reveal a new location, cut, montage, time jump, or add sudden new characters.\n- Success and failure are opposite outcomes of the same immediate action.\n- The scene field must describe the same visible location as the source frame, not a new setting.\n- The constraints field must name the most important continuity locks for this shot.`,
 					},
 					{
 						type: "image_url",
@@ -300,10 +404,11 @@ export async function createNodeManifest(input: {
 			},
 		],
 		normalizeNodeManifest,
+		{ name: "node_manifest", schema: NODE_MANIFEST_SCHEMA },
 	);
 }
 
-export async function generateStartImage(prompt: string) {
+export async function generateStartImage(prompt: string, aspectRatio: string) {
 	const response = await openRouterJson<ChatCompletionResponse>("/chat/completions", {
 		method: "POST",
 		body: JSON.stringify({
@@ -315,6 +420,10 @@ export async function generateStartImage(prompt: string) {
 				},
 			],
 			modalities: ["image", "text"],
+			image_config: {
+				aspect_ratio: aspectRatio,
+				quality: "high",
+			},
 			max_tokens: 1000,
 		}),
 	});
@@ -330,6 +439,7 @@ export async function submitSeedanceVideo(input: {
 	firstFrameDataUrl: string;
 	duration: number;
 	resolution: string;
+	aspectRatio: string;
 	generateAudio: boolean;
 	seed?: number;
 }) {
@@ -339,6 +449,7 @@ export async function submitSeedanceVideo(input: {
 			model: env.OPENROUTER_VIDEO_MODEL,
 			prompt: input.prompt,
 			resolution: input.resolution,
+			aspect_ratio: input.aspectRatio,
 			duration: input.duration,
 			generate_audio: input.generateAudio,
 			seed: input.seed,

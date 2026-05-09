@@ -43,13 +43,13 @@ export function NewRunForm() {
 			</p>
 			<h2 className="font-semibold text-2xl tracking-tight">Start a new run</h2>
 			<p className="mt-2 text-muted-foreground text-sm">
-				Gemini 3.1 Pro Preview writes the manifest, GPT Image 2 paints the start frame, and Seedance
-				2.0 renders each success/failure clip.
+				Gemini 3.1 Pro Preview plans fixed-scene cinematic shots, GPT Image 2 paints a 16:9 start
+				frame, and Seedance 2.0 renders each 8-second branch clip.
 			</p>
 			<div className="mt-5 flex flex-col gap-3">
 				<Textarea
 					rows={5}
-					placeholder="Describe the branching challenge video you want to generate..."
+					placeholder="Describe the cinematic video-game challenge, main character, setting, and objective..."
 					value={prompt}
 					onChange={(event) => setPrompt(event.target.value)}
 					disabled={isSubmitting}
